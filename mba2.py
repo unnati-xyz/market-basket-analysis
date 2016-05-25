@@ -1,7 +1,7 @@
 import pandas as pd
 import itertools
 
-file_location = 'groceries_small.csv'
+file_location = 'groceries.csv'
 
 MIN_SUPPORT = 2
 
@@ -21,3 +21,28 @@ def combinations(x, axis=1, k=1):
     combos = list(itertools.combinations(x['item'], k))
     return pd.DataFrame({'Person': name,
                          'item': combos})
+
+for k in [2, 3]:
+
+    print("DATAFRAME ITERATION %s" % k)
+    drop_duplicate = df.drop_duplicates(subset=['Person', 'item'], keep='last')
+    # print(drop_duplicate)
+
+    # support gives the # of times each item/item-set is purchased
+    support = drop_duplicate.groupby(['item'], as_index=False).count()
+    # print(support)
+
+    # infrequent item/item-sets. ie., item/item-sets where support < MIN_SUPPORT
+    infrequent = support[support['Person'] <= MIN_SUPPORT]
+    # print(infrequent)
+
+    # frequent item/item-sets. ie., item/item-sets where support > MIN_SUPPORT
+    frequent = support[support['Person'] > MIN_SUPPORT]
+    print(frequent)
+
+    # deletes infrequent item/item-sets
+    delete_infrequent = drop_duplicate.apply(delete, axis=1, infrequent=infrequent).dropna()
+
+    # Dataframe of all combinations of items from a transaction
+    df = drop_duplicate.groupby('Person', as_index=True).apply(combinations, axis=1, k=k)
+    #print(df)
