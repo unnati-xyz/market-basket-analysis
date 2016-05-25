@@ -21,11 +21,13 @@ support=pd.value_counts(df['item'].values, sort=False)
 print(support)
 
 #printing supoort of a particular item
-print(sup['baby food,'])
+print(support['baby food,'])
 
 # grouping the items based on person or transaction-id
 df = df.groupby('Person').sum()
 print(df.head())
+
+minSupport=10
 
 # support count
 #support = df.groupby(['item'], as_index=False).count()
