@@ -1,9 +1,9 @@
 import pandas as pd
 import itertools
 
-file_location = 'small.csv'
+file_location = 'simple.csv'
 
-MIN_SUPPORT = 2
+MIN_SUPPORT = 1
 
 # data must be in the format [transaction, item]
 
@@ -22,7 +22,7 @@ def combinations(x, axis=1, k=1):
     return pd.DataFrame({'Person': name,
                          'item': combos})
 
-for k in [2, 3]:
+for k in [2, 3, 4]:
 
     print("DATAFRAME ITERATION %s" % (k-1))
     drop_duplicate = df.drop_duplicates(subset=['Person', 'item'], keep='last')
