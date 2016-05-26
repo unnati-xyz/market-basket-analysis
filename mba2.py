@@ -46,3 +46,11 @@ for k in [2, 3]:
     # Dataframe of all combinations of items from a transaction
     df = drop_duplicate.groupby('Person', as_index=True).apply(combinations, axis=1, k=k)
     #print(df)
+
+    mba = pd.DataFrame({'item_set': frequent['item'],
+                        'support': frequent['Person'],
+                        #'confidence': ,
+                        #'lift':
+                         })
+    mba = mba.set_index(['item_set'])
+    print(mba)
