@@ -1,7 +1,7 @@
 import pandas as pd
 import itertools
 
-file_location = 'groceries.csv'
+file_location = 'small.csv'
 
 MIN_SUPPORT = 2
 
