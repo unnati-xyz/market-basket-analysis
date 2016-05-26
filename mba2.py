@@ -24,7 +24,7 @@ def combinations(x, axis=1, k=1):
 
 for k in [2, 3]:
 
-    print("DATAFRAME ITERATION %s" % k)
+    print("DATAFRAME ITERATION %s" % (k-1))
     drop_duplicate = df.drop_duplicates(subset=['Person', 'item'], keep='last')
     # print(drop_duplicate)
 
@@ -38,7 +38,7 @@ for k in [2, 3]:
 
     # frequent item/item-sets. ie., item/item-sets where support > MIN_SUPPORT
     frequent = support[support['Person'] > MIN_SUPPORT]
-    print(frequent)
+    #print(frequent)
 
     # deletes infrequent item/item-sets
     delete_infrequent = drop_duplicate.apply(delete, axis=1, infrequent=infrequent).dropna()
