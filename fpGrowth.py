@@ -310,19 +310,18 @@ def main():
 
     data_purchases = data_purchases.drop("Person", axis=1)
 
+    #Setting min support
+    minsupport = 100
     #Finding support of items
-    support=data_purchases.sum(axis=0)
+    support = data_purchases.sum(axis=0)
+    infrequent = (support[support< minsupport])
+    support = (support[support> minsupport])
     #print(support['UHT-milk'])
 
-    #Setting min support
-    minsupport=100
-
     #Converting pandas series to dict
-    support=support.to_dict()
+    support = support.to_dict()
+    infrequent = infrequent.to_dict()
 
-    #Find infrequent items(support<minsupport)
-    infrequent = dict((item, support) for item, support in support.items()
-        if support < minsupport)
 
     #Infrequent Columnss
     infreq=list(item for item,support in infrequent.items())
@@ -330,12 +329,9 @@ def main():
     #Dropping infrequent columns
     data_purchases=data_purchases.drop(infreq, axis=1)
 
-    #Find frequent items(support>=minsupport)
-    frequent = dict((item, support) for item, support in support.items()
-        if support >= minsupport)
 
     #Sorting Columns based on support
-    frequent=dict(sorted(frequent.items(), key=lambda x: x[1],reverse=True))
+    frequent=dict(sorted(support.items(), key=lambda x: x[1],reverse=True))
 
     #Frequent Columnss
     freq=list(item for item,support in frequent.items())
@@ -382,7 +378,6 @@ def powerset(iterable):
 if __name__ == '__main__':
     main()
 '''
-
 rows=data_purchases.iterrows
 rows=pd.DataFrame(rows)
 for row in rows:
