@@ -342,17 +342,42 @@ def main():
 
     data_purchases=data_purchases[freq]
 
+    freqItemsets=find_frequent_itemsets(data_purchases,minsupport, True)
+    generateRules(freqItemsets)
+
+def generateRules(freqItemsets):
     result=[]
-
-
-    for itemset, support in find_frequent_itemsets(data_purchases,minsupport, True):
+    for itemset, support in freqItemsets:
         if len(itemset)>1:
             result.append((itemset,support))
 
         result = sorted(result, key=lambda i: i[0])
 
         for itemset, support in result:
-            print (str(itemset) + ' ' + str(support))
+
+            results = list(powerset(itemset))
+            results.remove(())
+
+
+            for subset in itertools.combinations(results, 2):
+                t=(subset[0],' --> ',subset[1],'\tsupport:',support)
+
+                with open("Output.txt", "a") as text_file:
+                    line = ' '.join(str(x) for x in t)
+                    text_file.write(line + '\n')
+                    #print('writing')
+
+
+
+
+
+from itertools import chain, combinations
+
+def powerset(iterable):
+    "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
+    s = list(iterable)
+    return chain.from_iterable(combinations(s, r) for r in range(len(s)+1))
+
 
 if __name__ == '__main__':
     main()
