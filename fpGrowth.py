@@ -346,6 +346,7 @@ class RuleGenerator():
             if len(itemset)>1:
                 result.append((itemset,support))
 
+<<<<<<< HEAD
         result = sorted(result, key=lambda i: i[0])
             #print(result)
         for itemset, support in result:
@@ -355,6 +356,21 @@ class RuleGenerator():
 
         for subset in itertools.combinations(results, 2):
             t=(subset[0],' --> ',subset[1],'\tsupport:',support)
+=======
+            result = sorted(result, key=lambda i: i[0])
+        #print(result)
+            for itemset, support in result:
+                results = list(self.fun.powerset(itemset))
+                results.remove(())
+                results = (set(results))
+
+
+            for subset in itertools.combinations(results, 2):
+                for x in subset[0]:
+                    for y in subset[1]:
+                        if x != y:
+                            t=(subset[0],' --> ',subset[1],'\tsupport:',support)
+>>>>>>> 2df4213d65a7c742b764b6db85631adf04ba75ef
 
             with open("Output.txt", "a") as text_file:
                 line = ' '.join(str(x) for x in t)
