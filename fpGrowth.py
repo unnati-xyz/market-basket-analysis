@@ -346,17 +346,6 @@ class RuleGenerator():
             if len(itemset)>1:
                 result.append((itemset,support))
 
-<<<<<<< HEAD
-        result = sorted(result, key=lambda i: i[0])
-            #print(result)
-        for itemset, support in result:
-            results = list(self.fun.powerset(itemset))
-            results.remove(())
-
-
-        for subset in itertools.combinations(results, 2):
-            t=(subset[0],' --> ',subset[1],'\tsupport:',support)
-=======
             result = sorted(result, key=lambda i: i[0])
         #print(result)
             for itemset, support in result:
@@ -365,16 +354,22 @@ class RuleGenerator():
                 results = (set(results))
 
 
-            for subset in itertools.combinations(results, 2):
-                for x in subset[0]:
-                    for y in subset[1]:
-                        if x != y:
-                            t=(subset[0],' --> ',subset[1],'\tsupport:',support)
->>>>>>> 2df4213d65a7c742b764b6db85631adf04ba75ef
+            for set1 in results:
+                results1=results
+                results_wo_set=results1
+                for set2 in results:
+                    if (set(set1).issubset(set2)) or (set(set2).issubset(set1)):
+                        results_wo_set=results1.remove(set2)
 
-            with open("Output.txt", "a") as text_file:
-                line = ' '.join(str(x) for x in t)
-                text_file.write(line + '\n')
+                for subset in itertools.combinations(results_wo_set, 2):
+                    for x in subset[0]:
+                        for y in subset[1]:
+                            if x != y:
+                                t=(subset[0],' --> ',subset[1],'\tsupport:',support)
+                                with open("Output.txt", "a") as text_file:
+                                    line = ' '.join(str(x) for x in t)
+                                    text_file.write(line + '\n')
+
                    
 
 if __name__ == '__main__':
