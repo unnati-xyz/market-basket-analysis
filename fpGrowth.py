@@ -1,52 +1,12 @@
+# # Market Basket Analysis #FP Growth method
+
+#Import libraries
 import pandas as pd
 import itertools
-
-
 from collections import defaultdict, namedtuple
+from itertools import chain, combinations
 
-def find_frequent_itemsets(df, minimum_support, include_support=False):
-    """
-    Find frequent itemsets in the given transactions using FP-growth. This
-    function returns a generator instead of an eagerly-populated list of items.
-
-    The `transactions` parameter can be any iterable of iterables of items.
-    `minimum_support` should be an integer specifying the minimum number of
-    occurrences of an itemset for it to be accepted.
-
-    Each item must be hashable (i.e., it must be valid as a member of a
-    dictionary or a set).
-
-    If `include_support` is true, yield (itemset, support) pairs instead of
-    just the itemsets.
-    """
-    y = df.columns
-    x = df.apply(lambda x: x>0, raw=True)
-    z=x.apply(lambda x: list(y[x.values]), axis=1)
-
-    master = FPTree()
-    for n in range(1,len(z)):
-       master.add(z[n])
-
-
-    def find_with_suffix(tree, suffix):
-        for item, nodes in tree.items():
-            support = sum(n.count for n in nodes)
-            if support >= minimum_support and item not in suffix:
-                # New winner!
-                found_set = [item] + suffix
-                yield (found_set, support) if include_support else found_set
-
-                # Build a conditional tree and recursively search for frequent
-                # itemsets within it.
-                cond_tree = conditional_tree_from_paths(tree.prefix_paths(item))
-                for s in find_with_suffix(cond_tree, found_set):
-                    yield s # pass along the good news to our caller
-
-    # Search for frequent itemsets, and yield the results we find.
-    for itemset in find_with_suffix(master, []):
-        yield itemset
-
-class FPTree(object):
+class FPTree:
     """
     An FP tree.
 
@@ -140,42 +100,8 @@ class FPTree(object):
 
         return (collect_path(node) for node in self.nodes(item))
 
-def conditional_tree_from_paths(paths):
-    """Build a conditional FP-tree from the given prefix paths."""
-    tree = FPTree()
-    condition_item = None
-    items = set()
 
-    # Import the nodes in the paths into the new tree. Only the counts of the
-    # leaf notes matter; the remaining counts will be reconstructed from the
-    # leaf counts.
-    for path in paths:
-        if condition_item is None:
-            condition_item = path[-1].item
-
-        point = tree.root
-        for node in path:
-            next_point = point.search(node.item)
-            if not next_point:
-                # Add a new node to the tree.
-                items.add(node.item)
-                count = node.count if node.item == condition_item else 0
-                next_point = FPNode(tree, node.item, count)
-                point.add(next_point)
-                tree._update_route(next_point)
-            point = next_point
-
-    assert condition_item is not None
-
-    # Calculate the counts of the non-leaf nodes.
-    for path in tree.prefix_paths(condition_item):
-        count = path[-1].count
-        for node in reversed(path[:-1]):
-            node._count += count
-
-    return tree
-
-class FPNode(object):
+class FPNode:
     """A node in an FP tree."""
 
     def __init__(self, tree, item, count=1):
@@ -285,74 +211,146 @@ class FPNode(object):
         return "<%s %r (%r)>" % (type(self).__name__, self.item, self.count)
 
 
-def main():
+class Functions:
 
-    #Reading csv file
-    data=pd.read_csv("groceries.csv")
+    def powerset(self,iterable):
+        "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
+        s = list(iterable)
+        return chain.from_iterable(combinations(s, r) for r in range(len(s)+1))
 
-    #Removing duplicate items in a transaction
-    data = data.drop_duplicates(subset=['Person', 'item'], keep='last')
+    def conditional_tree_from_paths(self,paths):
+        """Build a conditional FP-tree from the given prefix paths."""
+        tree = FPTree()
+        condition_item = None
+        items = set()
 
-    #All items are bought only once as the duplicates are removed.
-    data["Quantity"]=1
+        # Import the nodes in the paths into the new tree. Only the counts of the
+        # leaf notes matter; the remaining counts will be reconstructed from the
+        # leaf counts.
+        for path in paths:
+            if condition_item is None:
+                condition_item = path[-1].item
 
-    #Converting data from long to wide format
-    dataWide=data.pivot("Person", "item", "Quantity")
+            point = tree.root
+            for node in path:
+                next_point = point.search(node.item)
+                if not next_point:
+                    # Add a new node to the tree.
+                    items.add(node.item)
+                    count = node.count if node.item == condition_item else 0
+                    next_point = FPNode(tree, node.item, count)
+                    point.add(next_point)
+                    tree._update_route(next_point)
+                point = next_point
 
-    #Replace NA with 0
-    dataWide.fillna(0, inplace=True)
-    #print(dataWide.head())
+        assert condition_item is not None
 
-    data_purchases = dataWide.copy()
+        # Calculate the counts of the non-leaf nodes.
+        for path in tree.prefix_paths(condition_item):
+            count = path[-1].count
+            for node in reversed(path[:-1]):
+                node._count += count
 
-    #To make the 'Person' field just another column and not an index
-    data_purchases = data_purchases.reset_index()
+        return tree
 
-    data_purchases = data_purchases.drop("Person", axis=1)
+class Run:
 
-    #Setting min support
-    minsupport = 100
-    #Finding support of items
-    support = data_purchases.sum(axis=0)
-    infrequent = (support[support< minsupport])
-    support = (support[support> minsupport])
-    #print(support['UHT-milk'])
+    def __init__(self,file):
 
-    #Converting pandas series to dict
-    support = support.to_dict()
-    infrequent = infrequent.to_dict()
+        self.data=pd.read_csv(file)           #Reading csv file
+        self.data = self.data.drop_duplicates(subset=['Person', 'item'], keep='last')           #Removing duplicate items in a transaction
+        self.data["Quantity"]=1          #Assume that for all items only one quantity was bought
+        self.dataWide=self.data.pivot("Person", "item", "Quantity")           #Converting data from long to wide format
+        self.dataWide.fillna(0, inplace=True)            #Replace NA with 0
+        self.data_purchases = self.dataWide.copy()
+        self.data_purchases = self.data_purchases.reset_index()             #To make the 'Person' field just another column and not an index
+        self.data_purchases = self.data_purchases.drop("Person", axis=1)
+
+        self.min_support = 100             #Setting min support
+        self.support = self.data_purchases.sum(axis=0)           #Finding support of items
+        infrequent = (self.support[self.support< self.min_support])
+        self.support = (self.support[self.support> self.min_support])
+        self.support = self.support.to_dict()           #Converting pandas series to dict
+
+        infrequent = infrequent.to_dict()
+        infreq=list(item for item,support in infrequent.items())          #Infrequent Columnss
+        self.data_purchases=self.data_purchases.drop(infreq, axis=1)           #Dropping infrequent columns
+        frequent=dict(sorted(self.support.items(), key=lambda x: x[1],reverse=True))           #Sorting Columns based on support
+        freq=list(item for item,support in frequent.items())           #Frequent Columnss
+        self.data_purchases=self.data_purchases[freq]
+
+    def main(self):
+        rules=RuleGenerator()
+        rules.generate_rules(self.freq_itemsets)
 
 
-    #Infrequent Columnss
-    infreq=list(item for item,support in infrequent.items())
+class FPGrowth(Run):
 
-    #Dropping infrequent columns
-    data_purchases=data_purchases.drop(infreq, axis=1)
+    def __init__(self):
+
+        self.fun=Functions()
+        self.freq_itemsets= self.find_frequent_itemsets(self.data_purchases,self.min_support,True)
+
+    def find_frequent_itemsets(self,data_frame, minimum_support, include_support=False):
+        """
+        Find frequent itemsets in the given transactions using FP-growth. This
+        function returns a generator instead of an eagerly-populated list of items.
+
+        The `transactions` parameter can be any iterable of iterables of items.
+    `   minimum_support` should be an integer specifying the minimum number of
+        occurrences of an itemset for it to be accepted.
+
+        Each item must be hashable (i.e., it must be valid as a member of a
+        dictionary or a set).
+
+        If `include_support` is true, yield (itemset, support) pairs instead of
+        just the itemsets.
+        """
+        y = data_frame.columns
+        x = data_frame.apply(lambda x: x>0, raw=True)
+        z=x.apply(lambda x: list(y[x.values]), axis=1)
+
+        master = FPTree()
+        for n in range(1,len(z)):
+            master.add(z[n])
 
 
-    #Sorting Columns based on support
-    frequent=dict(sorted(support.items(), key=lambda x: x[1],reverse=True))
+        def find_with_suffix(tree, suffix):
 
-    #Frequent Columnss
-    freq=list(item for item,support in frequent.items())
+            for item, nodes in tree.items():
+                support = sum(n.count for n in nodes)
+                if support >= minimum_support and item not in suffix:
+                    # New winner!
+                    found_set = [item] + suffix
+                    yield (found_set, support) if include_support else found_set
 
-    data_purchases=data_purchases[freq]
+                    # Build a conditional tree and recursively search for frequent
+                    # itemsets within it.
+                    cond_tree = self.fun.conditional_tree_from_paths(tree.prefix_paths(item))
+                    for s in find_with_suffix(cond_tree, found_set):
+                        yield s # pass along the good news to our caller
 
-    freqItemsets=find_frequent_itemsets(data_purchases,minsupport, True)
-    generateRules(freqItemsets)
+        # Search for frequent itemsets, and yield the results we find.
+        for itemset in find_with_suffix(master, []):
+            yield itemset
 
-def generateRules(freqItemsets):
-    result=[]
-    for itemset, support in freqItemsets:
-        if len(itemset)>1:
-            result.append((itemset,support))
+class RuleGenerator(FPGrowth, Run):
 
-        result = sorted(result, key=lambda i: i[0])
+    def __init__(self):
+        Run.__init__(self, "groceries.csv")
+        FPGrowth.__init__(self)
 
-        for itemset, support in result:
+    def generate_rules(self,freq_itemsets):
+        result=[]
+        for itemset, support in freq_itemsets:
+            if len(itemset)>1:
+                result.append((itemset,support))
 
-            results = list(powerset(itemset))
-            results.remove(())
+            result = sorted(result, key=lambda i: i[0])
+        #print(result)
+            for itemset, support in result:
+                results = list(self.fun.powerset(itemset))
+                results.remove(())
 
 
             for subset in itertools.combinations(results, 2):
@@ -363,38 +361,6 @@ def generateRules(freqItemsets):
                     text_file.write(line + '\n')
                     #print('writing')
 
-
-
-
-
-from itertools import chain, combinations
-
-def powerset(iterable):
-    "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
-    s = list(iterable)
-    return chain.from_iterable(combinations(s, r) for r in range(len(s)+1))
-
-
 if __name__ == '__main__':
-    main()
-'''
-rows=data_purchases.iterrows
-rows=pd.DataFrame(rows)
-for row in rows:
-        for column in range(0,len(data_purchases.columns)):
-                if data_purchases[column][row]>0:
-                        print(column)
+    Run("groceries.csv").main()
 
-print(data_purchases.astype(bool).sum(axis=1))
-
-cols=[]
-data_purchases.apply(lambda x: x > 0, raw=True).apply(lambda x: list(cols[x.values]), axis=1)
-print(cols)
-
-
-frequent={k: v for k, v in support.items if v>minsupport}
-print(frequent)
-
-for row in data_purchases.iterrows:
-    print(row)
-'''
