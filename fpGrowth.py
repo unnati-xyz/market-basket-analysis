@@ -351,10 +351,14 @@ class RuleGenerator(FPGrowth, Run):
             for itemset, support in result:
                 results = list(self.fun.powerset(itemset))
                 results.remove(())
+                results = (set(results))
 
 
             for subset in itertools.combinations(results, 2):
-                t=(subset[0],' --> ',subset[1],'\tsupport:',support)
+                for x in subset[0]:
+                    for y in subset[1]:
+                        if x != y:
+                            t=(subset[0],' --> ',subset[1],'\tsupport:',support)
 
                 with open("Output.txt", "a") as text_file:
                     line = ' '.join(str(x) for x in t)
