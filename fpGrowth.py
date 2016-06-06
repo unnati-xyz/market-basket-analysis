@@ -281,7 +281,7 @@ class Run:
 
     def main(self):
         rules=RuleGenerator()
-        rules.generate_rules(self.freq_itemsets)
+        rules.generate_rules(self.fpTree.freq_itemsets)
 
 
 class FPGrowth(Run):
@@ -334,11 +334,11 @@ class FPGrowth(Run):
         for itemset in find_with_suffix(master, []):
             yield itemset
 
-class RuleGenerator(FPGrowth, Run):
+class RuleGenerator():
 
     def __init__(self):
-        Run.__init__(self, "groceries.csv")
-        FPGrowth.__init__(self)
+        self.fpTree=FPGrowth()
+        self.fun=Functions()
 
     def generate_rules(self,freq_itemsets):
         result=[]
@@ -346,20 +346,20 @@ class RuleGenerator(FPGrowth, Run):
             if len(itemset)>1:
                 result.append((itemset,support))
 
-            result = sorted(result, key=lambda i: i[0])
-        #print(result)
-            for itemset, support in result:
-                results = list(self.fun.powerset(itemset))
-                results.remove(())
+        result = sorted(result, key=lambda i: i[0])
+            #print(result)
+        for itemset, support in result:
+            results = list(self.fun.powerset(itemset))
+            results.remove(())
 
 
-            for subset in itertools.combinations(results, 2):
-                t=(subset[0],' --> ',subset[1],'\tsupport:',support)
+        for subset in itertools.combinations(results, 2):
+            t=(subset[0],' --> ',subset[1],'\tsupport:',support)
 
-                with open("Output.txt", "a") as text_file:
-                    line = ' '.join(str(x) for x in t)
-                    text_file.write(line + '\n')
-                    #print('writing')
+            with open("Output.txt", "a") as text_file:
+                line = ' '.join(str(x) for x in t)
+                text_file.write(line + '\n')
+                   
 
 if __name__ == '__main__':
     Run("groceries.csv").main()
