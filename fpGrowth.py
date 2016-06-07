@@ -253,10 +253,52 @@ class Functions:
 
         return tree
 
-class Run:
+class DataHandler:
 
-    def __init__(self,file):
+    def __init__(self):
+        pass
 
+
+    def read_data(self, file):
+
+    def find_support(self, data, min_support):
+
+
+
+class FPGrowth():
+
+    def __init__(self):
+
+
+    def find_frequent_itemset(self, data):
+
+
+class RuleGenerator():
+
+    def __init__(self):
+
+
+    def generate_rules(self, itemset):
+
+
+
+if __name__ == '__main__':
+
+    handler = DataHandler()
+    df = handler.read_data("foo.txt")
+    support_df = handler.find_support(df, 2)
+
+    fpgrowth= FPGrowth()
+    frequent_items_df = fpgrowth.find_frequent_itemset(support_df)
+
+    generator = RuleGenerator()
+    rules = generator.generate_rules(frequent_items_df)
+
+    handler.write_rules(rules)
+
+
+
+        print("RUN!!")
         self.data=pd.read_csv(file)           #Reading csv file
         self.data = self.data.drop_duplicates(subset=['Person', 'item'], keep='last')           #Removing duplicate items in a transaction
         self.data["Quantity"]=1          #Assume that for all items only one quantity was bought
@@ -281,13 +323,16 @@ class Run:
 
     def main(self):
         rules=RuleGenerator()
-        rules.generate_rules(self.fpTree.freq_itemsets)
+        rules.generate_rules(self.freq_itemsets)
 
 
 class FPGrowth(Run):
 
     def __init__(self):
 
+        print("GROW!")
+
+        super().__init__('groceries.csv')
         self.fun=Functions()
         self.freq_itemsets= self.find_frequent_itemsets(self.data_purchases,self.min_support,True)
 
@@ -334,10 +379,12 @@ class FPGrowth(Run):
         for itemset in find_with_suffix(master, []):
             yield itemset
 
-class RuleGenerator():
+class RuleGenerator(FPGrowth):
 
     def __init__(self):
-        self.fpTree=FPGrowth()
+        print("RULES YO!")
+
+        super.__init__()
         self.fun=Functions()
 
     def generate_rules(self,freq_itemsets):
