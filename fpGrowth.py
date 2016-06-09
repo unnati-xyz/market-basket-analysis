@@ -5,7 +5,7 @@ import pandas as pd
 import itertools
 from collections import defaultdict, namedtuple
 from itertools import chain, combinations
-
+Support={}
 class FPTree:
     """
     An FP tree.
@@ -331,9 +331,11 @@ class FPGrowth():
 
             for item, nodes in tree.items():
                 support = sum(n.count for n in nodes)
+                Support[item]=support
                 if support >= minimum_support and item not in suffix:
                     # New winner!
                     found_set = [item] + suffix
+                    #Support[str(found_set)]=support
                     #print(found_set,' ',support)
                     yield (found_set, support) if include_support else found_set
 
@@ -358,24 +360,28 @@ class RuleGenerator():
 
     def generate_rules(self,freq_itemsets):
 
-        for itemset in freq_itemsets:
+        for itemset,support in freq_itemsets:
+            Superset=tuple(sorted(itemset))
+            Support[Superset]=support
             if len(itemset)==1:
                 pass
 
             else:
+
                 itemset=set(itemset)
                 results = list(self.functions.powerset(itemset))
-                #print(itemset)
+
                 results.remove(())
                 results=set(results)
                 for subset in  results:
-                    #print(subset)
+
                     results_wo_set=itemset-set(subset)
-                    #print(results_wo_set)
 
                     if(len(results_wo_set)>0):
-                        t=(subset,' --> ',results_wo_set)
+
+                        t=(subset,' --> ',results_wo_set,' Support:',support)
                         #print(t)
+
                         with open("Output.txt", "a") as text_file:
                             #print('writing')
                             line = ' '.join(str(x) for x in t)
@@ -387,13 +393,18 @@ class RuleGenerator():
 if __name__=="__main__":
     handler=DataHandler()
     df=handler.read_data('groceries.csv')
+
     pruned_df=pd.DataFrame(handler.pruning_data(df,100))
 
     fpgrowth=FPGrowth()
-    freq_itemsets=fpgrowth.find_frequent_itemsets(pruned_df,100,False)
+    freq_itemsets=fpgrowth.find_frequent_itemsets(pruned_df,100,True)
 
     generator=RuleGenerator()
     rules=generator.generate_rules(freq_itemsets)
+
+
+
+
 
 
 
