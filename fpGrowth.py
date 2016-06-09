@@ -280,7 +280,9 @@ class DataHandler:
         infrequent = (self.support[self.support< min_support])
         self.support = (self.support[self.support> min_support])
         #Converting pandas series to dict
-        self.support = self.support.to_dict()
+        Support = self.support.to_dict()
+        #print(self.support)
+
 
         infrequent = infrequent.to_dict()
          #Infrequent Columnss
@@ -326,11 +328,11 @@ class FPGrowth():
 
             master.add(z[n])
 
-
         def find_with_suffix(tree, suffix):
 
             for item, nodes in tree.items():
                 support = sum(n.count for n in nodes)
+                #print(item)
                 Support[item]=support
                 if support >= minimum_support and item not in suffix:
                     # New winner!
@@ -362,6 +364,7 @@ class RuleGenerator():
 
         for itemset,support in freq_itemsets:
             Superset=tuple(sorted(itemset))
+            #print(Superset)
             Support[Superset]=support
             if len(itemset)==1:
                 pass
@@ -378,9 +381,19 @@ class RuleGenerator():
                     results_wo_set=itemset-set(subset)
 
                     if(len(results_wo_set)>0):
+                        subset_print=subset
+                        if(len(subset)==1):
+                            #print(subset)
+                            for x in subset:
+                                subset_print=x
 
-                        t=(subset,' --> ',results_wo_set,' Support:',support)
-                        #print(t)
+                        #print(type(subset_print))
+
+                        for y in results_wo_set:
+                            subset_print2=y
+
+                        t=(subset_print,' --> ',subset_print2,'\t\tSupport:',support,'\t\tConfidence:',support/Support[subset_print])
+                        #print(
 
                         with open("Output.txt", "a") as text_file:
                             #print('writing')
@@ -402,6 +415,7 @@ if __name__=="__main__":
     generator=RuleGenerator()
     rules=generator.generate_rules(freq_itemsets)
 
+#    print(Support['margarine','other vegetables'])
 
 
 
