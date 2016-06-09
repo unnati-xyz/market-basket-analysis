@@ -40,12 +40,14 @@ class FPTree:
                 # There is already a node in this tree for the current
                 # transaction item; reuse it.
                 next_point.increment()
+
+                #Support[item]+=1
             else:
                 # Create a new point and add it as a child of the point we're
                 # currently looking at.
                 next_point = FPNode(self, item)
                 point.add(next_point)
-
+                #Support[item]=1
                 # Update the route of nodes that contain this item to include
                 # our new node.
                 self._update_route(next_point)
@@ -280,7 +282,7 @@ class DataHandler:
         infrequent = (self.support[self.support< min_support])
         self.support = (self.support[self.support> min_support])
         #Converting pandas series to dict
-        Support = self.support.to_dict()
+        #Support = self.support.to_dict()
         #print(self.support)
 
 
@@ -333,11 +335,13 @@ class FPGrowth():
             for item, nodes in tree.items():
                 support = sum(n.count for n in nodes)
                 #print(item)
-                Support[item]=support
+                #Support[str([item]+suffix)]=support
+
                 if support >= minimum_support and item not in suffix:
                     # New winner!
                     found_set = [item] + suffix
-                    #Support[str(found_set)]=support
+                    #print(type(found_set))
+                    Support[str(found_set)]=support
                     #print(found_set,' ',support)
                     yield (found_set, support) if include_support else found_set
 
@@ -363,9 +367,6 @@ class RuleGenerator():
     def generate_rules(self,freq_itemsets):
 
         for itemset,support in freq_itemsets:
-            Superset=tuple(sorted(itemset))
-            #print(Superset)
-            Support[Superset]=support
             if len(itemset)==1:
                 pass
 
@@ -379,21 +380,15 @@ class RuleGenerator():
                 for subset in  results:
 
                     results_wo_set=itemset-set(subset)
+                    if(len(subset)==1):
+                        for x in subset:
+                            subset=x
 
                     if(len(results_wo_set)>0):
-                        subset_print=subset
-                        if(len(subset)==1):
-                            #print(subset)
-                            for x in subset:
-                                subset_print=x
+                        results_wo_set=str(list(results_wo_set))
 
-                        #print(type(subset_print))
 
-                        for y in results_wo_set:
-                            subset_print2=y
-
-                        t=(subset_print,' --> ',subset_print2,'\t\tSupport:',support,'\t\tConfidence:',support/Support[subset_print])
-                        #print(
+                        t=(subset,' --> ',results_wo_set,'\t\tSupport:',support,'\t\tConfidence:')#,support/Support[results_wo_set])
 
                         with open("Output.txt", "a") as text_file:
                             #print('writing')
@@ -410,12 +405,12 @@ if __name__=="__main__":
     pruned_df=pd.DataFrame(handler.pruning_data(df,100))
 
     fpgrowth=FPGrowth()
-    freq_itemsets=fpgrowth.find_frequent_itemsets(pruned_df,100,True)
+    freq_itemsets=fpgrowth.find_frequent_itemsets(df,100,True)
 
     generator=RuleGenerator()
     rules=generator.generate_rules(freq_itemsets)
-
-#    print(Support['margarine','other vegetables'])
+    with open("Support.txt", "a") as text_file:
+         text_file.write(str(Support) + '\n')
 
 
 
