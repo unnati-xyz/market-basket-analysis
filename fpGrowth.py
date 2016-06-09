@@ -255,32 +255,44 @@ class Functions:
 
 class DataHandler:
 
-    def __init__(self,):
+    def __init__(self):
         pass
 
     def read_data(self, file):
-        self.data=pd.read_csv(file)           #Reading csv file
-        self.data = self.data.drop_duplicates(subset=['Person', 'item'], keep='last')           #Removing duplicate items in a transaction
-        self.data["Quantity"]=1          #Assume that for all items only one quantity was bought
-        self.dataWide=self.data.pivot("Person", "item", "Quantity")           #Converting data from long to wide format
-        self.dataWide.fillna(0, inplace=True)            #Replace NA with 0
+        #Reading csv file
+        self.data=pd.read_csv(file)
+        #Removing duplicate items in a transaction
+        self.data = self.data.drop_duplicates(subset=['Person', 'item'], keep='last')
+        self.data["Quantity"]=1
+        #Converting data from long to wide format
+        self.dataWide=self.data.pivot("Person", "item", "Quantity")
+        self.dataWide.fillna(0, inplace=True)
         self.data_purchases = self.dataWide.copy()
-        self.data_purchases = self.data_purchases.reset_index()             #To make the 'Person' field just another column and not an index
+        #To make the 'Person' field just another column and not an index
+        self.data_purchases = self.data_purchases.reset_index()
         self.data_purchases = self.data_purchases.drop("Person", axis=1)
+        return self.data_purchases
 
 
     def pruning_data(self, data, min_support):
-        self.support = self.data_purchases.sum(axis=0)           #Finding support of items
+        #Finding support of items
+        self.support = self.data_purchases.sum(axis=0)
         infrequent = (self.support[self.support< min_support])
         self.support = (self.support[self.support> min_support])
-        self.support = self.support.to_dict()           #Converting pandas series to dict
+        #Converting pandas series to dict
+        self.support = self.support.to_dict()
 
         infrequent = infrequent.to_dict()
-        infreq=list(item for item,support in infrequent.items())          #Infrequent Columnss
-        self.data_purchases=self.data_purchases.drop(infreq, axis=1)           #Dropping infrequent columns
-        frequent=dict(sorted(self.support.items(), key=lambda x: x[1],reverse=True))           #Sorting Columns based on support
-        freq=list(item for item,support in frequent.items())           #Frequent Columnss
+         #Infrequent Columnss
+        infreq=list(item for item,support in infrequent.items())
+        #Dropping infrequent columns
+        self.data_purchases=self.data_purchases.drop(infreq, axis=1)
+        #Sorting Columns based on support
+        frequent=dict(sorted(self.support.items(), key=lambda x: x[1],reverse=True))
+        #Frequent Columnss
+        freq=list(item for item,support in frequent.items())
         self.data_purchases=self.data_purchases[freq]
+        return self.data_purchases
 
 
 
@@ -311,6 +323,7 @@ class FPGrowth():
 
         master = FPTree()
         for n in range(1,len(z)):
+
             master.add(z[n])
 
 
@@ -321,6 +334,7 @@ class FPGrowth():
                 if support >= minimum_support and item not in suffix:
                     # New winner!
                     found_set = [item] + suffix
+                    #print(found_set,' ',support)
                     yield (found_set, support) if include_support else found_set
 
                     # Build a conditional tree and recursively search for frequent
@@ -331,6 +345,7 @@ class FPGrowth():
 
         # Search for frequent itemsets, and yield the results we find.
         for itemset in find_with_suffix(master, []):
+            #print(itemset)
             yield itemset
 
 
@@ -341,33 +356,32 @@ class RuleGenerator():
     def __init__(self):
         self.functions=Functions()
 
-
     def generate_rules(self,freq_itemsets):
-        result=[]
-        for itemset, support in freq_itemsets:
-            if len(itemset)>1:
-                result.append((itemset,support))
 
-            result = sorted(result, key=lambda i: i[0])
-        #print(result)
-            for itemset, support in result:
+        for itemset in freq_itemsets:
+            if len(itemset)==1:
+                pass
+
+            else:
+                itemset=set(itemset)
                 results = list(self.functions.powerset(itemset))
+                #print(itemset)
                 results.remove(())
-                results = (set(results))
+                results=set(results)
+                for subset in  results:
+                    #print(subset)
+                    results_wo_set=itemset-set(subset)
+                    #print(results_wo_set)
+
+                    if(len(results_wo_set)>0):
+                        t=(subset,' --> ',results_wo_set)
+                        #print(t)
+                        with open("Output.txt", "a") as text_file:
+                            #print('writing')
+                            line = ' '.join(str(x) for x in t)
+                            text_file.write(line + '\n')
 
 
-            for set1 in results:
-                results1=results
-                results_wo_set=results1
-                for set2 in results:
-                    if (set(set1).issubset(set2)) or (set(set2).issubset(set1)):
-                        results_wo_set=results1.remove(set2)
-
-                for subset in itertools.combinations(results_wo_set, 2):
-                    t=(subset[0],' --> ',subset[1],'\tsupport:',support)
-                    with open("Output.txt", "a") as text_file:
-                        line = ' '.join(str(x) for x in t)
-                        text_file.write(line + '\n')
 
 
 if __name__=="__main__":
@@ -376,9 +390,10 @@ if __name__=="__main__":
     pruned_df=pd.DataFrame(handler.pruning_data(df,100))
 
     fpgrowth=FPGrowth()
-    frequent_items_df=fpgrowth.find_frequent_itemsets(pruned_df,100,False)
+    freq_itemsets=fpgrowth.find_frequent_itemsets(pruned_df,100,False)
 
     generator=RuleGenerator()
-    rules=generator.generate_rules(frequent_items_df)
+    rules=generator.generate_rules(freq_itemsets)
+
 
 
