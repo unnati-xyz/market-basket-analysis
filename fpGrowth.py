@@ -264,7 +264,7 @@ class DataHandler:
         self.data = pd.read_csv(file)
         # Removing duplicate items in a transaction
         self.data = self.data.drop_duplicates(subset=['Person', 'item'], keep='last')
-        N = (self.data.groupby('Person').sum()).count()
+        #N = (self.data.groupby('Person').sum()).count()
         self.data["Quantity"] = 1
         # Converting data from long to wide format
         self.dataWide = self.data.pivot("Person", "item", "Quantity")
@@ -273,7 +273,8 @@ class DataHandler:
         # To make the 'Person' field just another column and not an index
         self.data_purchases = self.data_purchases.reset_index()
         self.data_purchases = self.data_purchases.drop("Person", axis=1)
-        return self.data_purchases
+        N=self.data_purchases.shape[0]
+        return self.data_purchases,N
 
 
     def pruning_data(self, data, min_support):
@@ -348,12 +349,13 @@ class FPGrowth():
             yield itemset
 
 
-class RuleGenerator(DataHandler):
+class RuleGenerator():
 
     def __init__(self):
         self.functions = Functions()
+        self.data=DataHandler()
 
-    def generate_rules(self, freq_itemsets):
+    def generate_rules(self, freq_itemsets,min_confidence,no_transactions):
 
         for itemset, support in freq_itemsets:
             superset = tuple(sorted(itemset))
@@ -377,16 +379,18 @@ class RuleGenerator(DataHandler):
                             support_lhs = Support[lhs]
                             rhs = tuple(list(rhs))
                             support_rhs = (Support[rhs])
-                            conf = Support[superset] / Support[lhs]
                             lift = (Support[superset])/(support_lhs * support_rhs)
+                            conf = Support[superset] / Support[lhs]
+                            support/=no_transactions
+                            if(conf>min_confidence):
 
-                            t = (lhs, ' --> ', rhs, ' Support:', support,  'Confidence:', conf, 'Lift:', lift)
-                            #print(t)
+                                t = (lhs, ' --> ', rhs, '\tSupport:', round(support,4),  '\tConfidence:', round(conf,4),'\tLift:', round(lift,4))
+                                #print(t)
 
-                            with open("Output.txt", "a") as text_file:
-                                # print('writing')
-                                line = ' '.join(str(x) for x in t)
-                                text_file.write(line + '\n')
+                                with open("Output.txt", "a") as text_file:
+                                    # print('writing')
+                                    line = ' '.join(str(x) for x in t)
+                                    text_file.write(line + '\n')
                         except Exception as e:
                             pass
                             # print(e)
@@ -394,7 +398,7 @@ class RuleGenerator(DataHandler):
 
 if __name__ == "__main__":
     handler = DataHandler()
-    df = handler.read_data('groceries.csv')
+    df,N = handler.read_data('groceries.csv')
 
     pruned_df = pd.DataFrame(handler.pruning_data(df, 100))
 
@@ -402,7 +406,7 @@ if __name__ == "__main__":
     freq_itemsets = fpgrowth.find_frequent_itemsets(pruned_df, 100, True)
 
     generator = RuleGenerator()
-    rules = generator.generate_rules(freq_itemsets)
+    rules = generator.generate_rules(freq_itemsets,0.2,N)
 
 
 
