@@ -214,12 +214,12 @@ class FPNode:
 
 class Functions:
 
-    def powerset(self,iterable):
+    def powerset(self, iterable):
         "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
         s = list(iterable)
         return chain.from_iterable(combinations(s, r) for r in range(len(s)+1))
 
-    def conditional_tree_from_paths(self,paths):
+    def conditional_tree_from_paths(self, paths):
         """Build a conditional FP-tree from the given prefix paths."""
         tree = FPTree()
         condition_item = None
@@ -273,26 +273,27 @@ class DataHandler:
         # To make the 'Person' field just another column and not an index
         self.data_purchases = self.data_purchases.reset_index()
         self.data_purchases = self.data_purchases.drop("Person", axis=1)
-        N=self.data_purchases.shape[0]
-        return self.data_purchases,N
+        N = self.data_purchases.shape[0]
+        return self.data_purchases, N
 
 
     def pruning_data(self, data, min_support):
         # Finding support of items
         self.support = self.data_purchases.sum(axis=0)
-        infrequent = (self.support[self.support< min_support])
-        self.support = (self.support[self.support> min_support])
+        self.support = (self.support / N)*100
+        infrequent = (self.support[self.support < min_support])
+        self.support = (self.support[self.support > min_support])
         self.support = self.support.to_dict()
 
         infrequent = infrequent.to_dict()
-        # Infrequent Columnss
-        infreq = list(item for item,support in infrequent.items())
+        # Infrequent Columns
+        infreq = list(item for item, support in infrequent.items())
         # Dropping infrequent columns
         self.data_purchases = self.data_purchases.drop(infreq, axis=1)
         # Sorting Columns based on support
-        frequent = dict(sorted(self.support.items(), key=lambda x: x[1],reverse=True))
-        # Frequent Columnss
-        freq = list(item for item,support in frequent.items())
+        frequent = dict(sorted(self.support.items(), key=lambda x: x[1], reverse=True))
+        # Frequent Columns
+        freq = list(item for item, support in frequent.items())
         self.data_purchases = self.data_purchases[freq]
         return self.data_purchases
 
@@ -300,9 +301,10 @@ class DataHandler:
 class FPGrowth():
 
     def __init__(self):
-        self.functions=Functions()
+        self.functions = Functions()
+        self.data = DataHandler()
 
-    def find_frequent_itemsets(self,data_frame, minimum_support, include_support=False):
+    def find_frequent_itemsets(self, data_frame, minimum_support, no_transactions, include_support=False):
         """
         Find frequent itemsets in the given transactions using FP-growth. This
         function returns a generator instead of an eagerly-populated list of items.
@@ -331,10 +333,9 @@ class FPGrowth():
             for item, nodes in tree.items():
                 support = sum(n.count for n in nodes)
                 Support[item] = support
+                support = (support/no_transactions)
                 if support >= minimum_support and item not in suffix:
                     found_set = [item] + suffix
-                    # Support[str(found_set)]=support
-                    # print(found_set,' ',support)
                     yield (found_set, support) if include_support else found_set
 
                     # Build a conditional tree and recursively search for frequent
@@ -345,7 +346,6 @@ class FPGrowth():
 
         # Search for frequent itemsets, and yield the results we find.
         for itemset in find_with_suffix(master, []):
-            # print(itemset)
             yield itemset
 
 
@@ -353,9 +353,8 @@ class RuleGenerator():
 
     def __init__(self):
         self.functions = Functions()
-        self.data=DataHandler()
 
-    def generate_rules(self, freq_itemsets,min_confidence,no_transactions):
+    def generate_rules(self, freq_itemsets, min_confidence, min_support):
 
         for itemset, support in freq_itemsets:
             superset = tuple(sorted(itemset))
@@ -376,41 +375,39 @@ class RuleGenerator():
                     if len(rhs) > 0:
                         try:
                             lhs = tuple(list(lhs))
+                            support = Support[superset]
                             support_lhs = Support[lhs]
                             rhs = tuple(list(rhs))
-                            support_rhs = (Support[rhs])
-                            lift = (Support[superset])/(support_lhs * support_rhs)
-                            conf = Support[superset] / Support[lhs]
-                            support/=no_transactions
-                            if(conf>min_confidence):
+                            support_rhs = Support[rhs]
+                            lift = support / (support_lhs * support_rhs)
+                            conf = support / Support[lhs]
+                            conf *= 100
 
-                                t = (lhs, ' --> ', rhs, '\tSupport:', round(support,4),  '\tConfidence:', round(conf,4),'\tLift:', round(lift,4))
-                                #print(t)
+                            if conf > min_confidence:
+                                if support > min_support:
 
-                                with open("Output.txt", "a") as text_file:
-                                    # print('writing')
-                                    line = ' '.join(str(x) for x in t)
-                                    text_file.write(line + '\n')
+                                    t = (lhs, ' --> ', rhs,
+                                         'Support:', support,
+                                         'Confidence(in %):', conf,
+                                         'Lift:', lift)
+                                    print(t)
+
+                                    with open("Output.txt", "a") as text_file:
+                                            line = ' '.join(str(x) for x in t)
+                                            text_file.write(line + '\n')
+
                         except Exception as e:
                             pass
-                            # print(e)
-
 
 if __name__ == "__main__":
     handler = DataHandler()
-    df,N = handler.read_data('groceries.csv')
+    df, N = handler.read_data('simple.csv')
 
-    pruned_df = pd.DataFrame(handler.pruning_data(df, 100))
+    pruned_df = pd.DataFrame(handler.pruning_data(data=df, min_support=0.2))
 
     fpgrowth = FPGrowth()
-    freq_itemsets = fpgrowth.find_frequent_itemsets(pruned_df, 100, True)
+    freq_itemsets = fpgrowth.find_frequent_itemsets(data_frame=pruned_df, minimum_support=0.2,
+                                                    include_support=True, no_transactions=N)
 
     generator = RuleGenerator()
-    rules = generator.generate_rules(freq_itemsets,0.2,N)
-
-
-
-
-
-
-
+    rules = generator.generate_rules(freq_itemsets=freq_itemsets, min_support=0.2, min_confidence=20)
