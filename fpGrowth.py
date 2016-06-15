@@ -1,12 +1,11 @@
 # # Market Basket Analysis #FP Growth method
 
+#Import libraries
 import pandas as pd
 import itertools
 from collections import defaultdict, namedtuple
 from itertools import chain, combinations
-Support = {}
-
-
+Support={}
 class FPTree:
     """
     An FP tree.
@@ -25,6 +24,7 @@ class FPTree:
         # "neighbors" that will hit every node containing that item.
         self._routes = {}
 
+
     @property
     def root(self):
         """The root node of the tree."""
@@ -40,12 +40,14 @@ class FPTree:
                 # There is already a node in this tree for the current
                 # transaction item; reuse it.
                 next_point.increment()
+
+                #Support[item]+=1
             else:
                 # Create a new point and add it as a child of the point we're
                 # currently looking at.
                 next_point = FPNode(self, item)
                 point.add(next_point)
-
+                #Support[item]=1
                 # Update the route of nodes that contain this item to include
                 # our new node.
                 self._update_route(next_point)
@@ -58,8 +60,7 @@ class FPTree:
 
         try:
             route = self._routes[point.item]
-            # route[1] is the tail
-            route[1].neighbor = point
+            route[1].neighbor = point # route[1] is the tail
             self._routes[point.item] = self.Route(route[0], point)
         except KeyError:
             # First node for this item; start a new route.
@@ -202,7 +203,7 @@ class FPNode:
         return tuple(self._children.itervalues())
 
     def inspect(self, depth=0):
-        print('  ' * depth) + repr(self)
+        print ('  ' * depth) + repr(self)
         for child in self.children:
             child.inspect(depth + 1)
 
@@ -254,53 +255,58 @@ class Functions:
 
         return tree
 
-
 class DataHandler:
 
     def __init__(self):
         pass
 
     def read_data(self, file):
-        self.data = pd.read_csv(file)
-        # Removing duplicate items in a transaction
+        #Reading csv file
+        self.data=pd.read_csv(file)
+        #Removing duplicate items in a transaction
         self.data = self.data.drop_duplicates(subset=['Person', 'item'], keep='last')
-        #N = (self.data.groupby('Person').sum()).count()
-        self.data["Quantity"] = 1
-        # Converting data from long to wide format
-        self.dataWide = self.data.pivot("Person", "item", "Quantity")
+        self.data["Quantity"]=1
+        #Converting data from long to wide format
+        self.dataWide=self.data.pivot("Person", "item", "Quantity")
         self.dataWide.fillna(0, inplace=True)
         self.data_purchases = self.dataWide.copy()
-        # To make the 'Person' field just another column and not an index
+        #To make the 'Person' field just another column and not an index
         self.data_purchases = self.data_purchases.reset_index()
         self.data_purchases = self.data_purchases.drop("Person", axis=1)
-        N=self.data_purchases.shape[0]
-        return self.data_purchases,N
+        return self.data_purchases
 
 
     def pruning_data(self, data, min_support):
-        # Finding support of items
+        #Finding support of items
         self.support = self.data_purchases.sum(axis=0)
         infrequent = (self.support[self.support< min_support])
         self.support = (self.support[self.support> min_support])
-        self.support = self.support.to_dict()
+        #Converting pandas series to dict
+        #Support = self.support.to_dict()
+        #print(self.support)
+
 
         infrequent = infrequent.to_dict()
-        # Infrequent Columnss
-        infreq = list(item for item,support in infrequent.items())
-        # Dropping infrequent columns
-        self.data_purchases = self.data_purchases.drop(infreq, axis=1)
-        # Sorting Columns based on support
-        frequent = dict(sorted(self.support.items(), key=lambda x: x[1],reverse=True))
-        # Frequent Columnss
-        freq = list(item for item,support in frequent.items())
-        self.data_purchases = self.data_purchases[freq]
+         #Infrequent Columnss
+        infreq=list(item for item,support in infrequent.items())
+        #Dropping infrequent columns
+        self.data_purchases=self.data_purchases.drop(infreq, axis=1)
+        #Sorting Columns based on support
+        frequent=dict(sorted(self.support.items(), key=lambda x: x[1],reverse=True))
+        #Frequent Columnss
+        freq=list(item for item,support in frequent.items())
+        self.data_purchases=self.data_purchases[freq]
         return self.data_purchases
+
 
 
 class FPGrowth():
 
     def __init__(self):
         self.functions=Functions()
+        self.Support={}
+        self.Set=[]
+
 
     def find_frequent_itemsets(self,data_frame, minimum_support, include_support=False):
         """
@@ -317,96 +323,110 @@ class FPGrowth():
         If `include_support` is true, yield (itemset, support) pairs instead of
         just the itemsets.
         """
+
         y = data_frame.columns
-        x = data_frame.apply(lambda x: x > 0, raw=True)
-        z = x.apply(lambda x: list(y[x.values]), axis=1)
+        x = data_frame.apply(lambda x: x>0, raw=True)
+        z=x.apply(lambda x: list(y[x.values]), axis=1)
 
         master = FPTree()
-        for n in range(1, len(z)):
+        for n in range(1,len(z)):
 
             master.add(z[n])
 
-        def find_with_suffix(tree, suffix):
+        def find_with_suffix(tree, suffix,minimum_support):
 
             for item, nodes in tree.items():
                 support = sum(n.count for n in nodes)
-                Support[item] = support
-                if support >= minimum_support and item not in suffix:
-                    found_set = [item] + suffix
-                    # Support[str(found_set)]=support
-                    # print(found_set,' ',support)
-                    yield (found_set, support) if include_support else found_set
+                #print(item)
+                #Support[str([item]+suffix)]=support
 
+                if support >= minimum_support and item not in suffix:
+                    # New winner!
+                    found_set = [item] + suffix
+                    #print(type(found_set))
+                    self.Support[str(found_set)]=support
+                    #print(str(found_set))
+                    yield (found_set, support)
                     # Build a conditional tree and recursively search for frequent
                     # itemsets within it.
                     cond_tree = self.functions.conditional_tree_from_paths(tree.prefix_paths(item))
-                    for s in find_with_suffix(cond_tree, found_set):
-                        yield s
+                    for s in find_with_suffix(cond_tree, found_set,minimum_support):
+                        yield s # pass along the good news to our caller
+
 
         # Search for frequent itemsets, and yield the results we find.
-        for itemset in find_with_suffix(master, []):
-            # print(itemset)
-            yield itemset
+        for itemset in find_with_suffix(master, [],minimum_support):
+        #print(itemset)
+            self.Set.append(itemset)
+
+
+
 
 
 class RuleGenerator():
 
     def __init__(self):
-        self.functions = Functions()
-        self.data=DataHandler()
+        self.functions=Functions()
 
-    def generate_rules(self, freq_itemsets,min_confidence,no_transactions):
+    def generate_rules(self,freq_itemsets,SupportDict):
 
-        for itemset, support in freq_itemsets:
-            superset = tuple(sorted(itemset))
-            Support[superset] = support
-            if len(itemset) == 1:
+        global Support
+        print('inside rules')
+        print(SupportDict)
+        with open("Support.txt", "a") as text_file:
+            text_file.write(str(Support) + '\n')
+
+
+        for itemset,support in freq_itemsets:
+            if len(itemset)==1:
                 pass
 
             else:
 
-                itemset = set(itemset)
+                itemset=set(itemset)
                 results = list(self.functions.powerset(itemset))
 
                 results.remove(())
-                results = set(results)
-                for lhs in results:
-                    rhs = itemset-set(lhs)
+                results=set(results)
+                for subset in  results:
 
-                    if len(rhs) > 0:
-                        try:
-                            lhs = tuple(list(lhs))
-                            support_lhs = Support[lhs]
-                            rhs = tuple(list(rhs))
-                            support_rhs = (Support[rhs])
-                            lift = (Support[superset])/(support_lhs * support_rhs)
-                            conf = Support[superset] / Support[lhs]
-                            support/=no_transactions
-                            if(conf>min_confidence):
+                    results_wo_set=itemset-set(subset)
+                    if(len(subset)==1):
+                        for x in subset:
+                            subset=x
 
-                                t = (lhs, ' --> ', rhs, '\tSupport:', round(support,4),  '\tConfidence:', round(conf,4),'\tLift:', round(lift,4))
-                                #print(t)
+                    if(len(results_wo_set)>0):
+                        results_wo_set=str(list(results_wo_set))
+                        #print(results_wo_set)
+                        #global Support
 
-                                with open("Output.txt", "a") as text_file:
-                                    # print('writing')
-                                    line = ' '.join(str(x) for x in t)
-                                    text_file.write(line + '\n')
-                        except Exception as e:
-                            pass
-                            # print(e)
+                        t=(subset,' --> ',results_wo_set,'\t\tSupport:',support,'\t\tConfidence:',support/SupportDict[results_wo_set])
+
+                        with open("Output.txt", "a") as text_file:
+                            #print('writing')
+                            line = ' '.join(str(x) for x in t)
+                            text_file.write(line + '\n')
 
 
-if __name__ == "__main__":
-    handler = DataHandler()
-    df,N = handler.read_data('groceries.csv')
+if __name__=="__main__":
+    handler=DataHandler()
+    df=handler.read_data('groceries.csv')
 
-    pruned_df = pd.DataFrame(handler.pruning_data(df, 100))
+    pruned_df=pd.DataFrame(handler.pruning_data(df,100))
 
-    fpgrowth = FPGrowth()
-    freq_itemsets = fpgrowth.find_frequent_itemsets(pruned_df, 100, True)
+    fpgrowth=FPGrowth()
+    freq_itemsets=fpgrowth.find_frequent_itemsets(df,100,True)
 
-    generator = RuleGenerator()
-    rules = generator.generate_rules(freq_itemsets,0.2,N)
+    generator=RuleGenerator()
+    #print('inside main')
+    #print(fpgrowth.Set)
+    rules=generator.generate_rules(fpgrowth.Set,fpgrowth.Support)
+
+    #print(fpgrowth.Support)
+
+
+
+
 
 
 
